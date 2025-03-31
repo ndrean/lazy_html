@@ -156,6 +156,14 @@ defmodule LazyHTMLTest do
       result = LazyHTML.query_by_id(lazy_html, "root")
       assert Enum.count(result) == 2
     end
+
+    test "only finds exact match" do
+      lazy_html =
+        LazyHTML.from_fragment(~S|<div id="root"></div><div id="root-1"></div>|)
+
+      result = LazyHTML.query_by_id(lazy_html, "root")
+      assert Enum.count(result) == 1
+    end
   end
 
   describe "text/1" do

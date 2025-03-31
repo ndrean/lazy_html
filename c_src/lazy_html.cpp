@@ -463,7 +463,8 @@ bool matches_id(lxb_dom_node_t *node, ErlNifBinary *id) {
     auto value = lxb_dom_element_get_attribute(
         element, reinterpret_cast<const lxb_char_t *>("id"), 2, &value_length);
 
-    if (value != NULL && lexbor_str_data_ncmp(value, id->data, id->size)) {
+    if (value != NULL && value_length == id->size &&
+        lexbor_str_data_ncmp(value, id->data, id->size)) {
       return true;
     }
   }
