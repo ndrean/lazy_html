@@ -11,8 +11,14 @@ defmodule LazyHTML.Tree do
   @type html_text :: String.t()
   @type html_comment :: {:comment, String.t()}
 
-  @doc """
+  @doc ~S'''
   Serializes Elixir tree data structure as an HTML string.
+
+  ## Options
+
+    * `:skip_whitespace_nodes` - when `true`, ignores text nodes that
+      consist entirely of whitespace, usually whitespace between tags.
+      Defaults to `false`.
 
   ## Examples
 
@@ -30,18 +36,31 @@ defmodule LazyHTML.Tree do
       iex> LazyHTML.Tree.to_html(tree)
       ~S|<div></div><!-- Link --><a href="https://elixir-lang.org">Elixir</a>|
 
-  """
-  @spec to_html(t()) :: String.t()
-  def to_html(tree) when is_list(tree) do
+      iex> tree = [
+      ...>   {"p", [],
+      ...>    [
+      ...>      "\n  ",
+      ...>      {"span", [], [" Hello "]},
+      ...>      "\n  ",
+      ...>      {"span", [], [" world "]},
+      ...>      "\n"
+      ...>    ]},
+      ...>   "\n"
+      ...> ]
+      iex> LazyHTML.Tree.to_html(tree, skip_whitespace_nodes: true)
+      "<p><span> Hello </span><span> world </span></p>"
+
+  '''
+  @spec to_html(t(), keyword()) :: String.t()
+  def to_html(tree, opts \\ []) when is_list(tree) and is_list(opts) do
+    opts = Keyword.validate!(opts, skip_whitespace_nodes: false)
+
     # We build the html by continuously appending to a result binary.
     # Appending to a binary is optimised by the runtime, so this
     # approach is memory efficient.
-    #
-    # For HTML specifics, refer to the standard [1].
-    #
-    # [1]: https://html.spec.whatwg.org/multipage/parsing.html#serialising-html-fragments
 
-    to_html(tree, true, <<>>)
+    ctx = %{skip_whitespace_nodes: opts[:skip_whitespace_nodes], escape: true}
+    to_html(tree, ctx, <<>>)
   end
 
   @void_tags ~w(
@@ -51,106 +70,101 @@ defmodule LazyHTML.Tree do
 
   @no_escape_tags ~w(style script xmp iframe noembed noframes plaintext)
 
-  defp to_html([], _escape, html), do: html
+  defp to_html([], _ctx, html), do: html
 
-  defp to_html([{tag, attrs, children} | tree], escape, html) do
+  defp to_html([{tag, attrs, children} | tree], ctx, html) do
     html = <<html::binary, "<", tag::binary>>
     html = append_attrs(attrs, html)
-    html = <<html::binary, ">">>
 
     if tag in @void_tags do
-      to_html(tree, escape, html)
+      html = <<html::binary, "/>">>
+      to_html(tree, ctx, html)
     else
+      html = <<html::binary, ">">>
       escape_children = tag not in @no_escape_tags
-      html = to_html(children, escape_children, html)
+      html = to_html(children, %{ctx | escape: escape_children}, html)
       html = <<html::binary, "</", tag::binary, ">">>
-      to_html(tree, escape, html)
+      to_html(tree, ctx, html)
     end
   end
 
-  defp to_html([text | tree], escape, html) when is_binary(text) do
-    html =
-      if escape do
-        append_escaped(text, :content, html)
-      else
-        <<html::binary, text::binary>>
-      end
-
-    to_html(tree, escape, html)
+  defp to_html([text | tree], ctx, html) when is_binary(text) do
+    html = append_text(text, text, 0, ctx, html)
+    to_html(tree, ctx, html)
   end
 
-  defp to_html([{:comment, content} | tree], escape, html) do
-    to_html(tree, escape, <<html::binary, "<!--", content::binary, "-->">>)
+  defp to_html([{:comment, content} | tree], ctx, html) do
+    to_html(tree, ctx, <<html::binary, "<!--", content::binary, "-->">>)
   end
 
   defp append_attrs([], html), do: html
 
   defp append_attrs([{name, value} | attrs], html) do
     html = <<html::binary, " ", name::binary, ~S/="/>>
-    html = append_escaped(value, :attribute, html)
+    html = append_escaped(value, html)
     html = <<html::binary, ~S/"/>>
     append_attrs(attrs, html)
   end
+
+  defp append_text(<<char, rest::binary>>, text, whitespace_size, ctx, html)
+       when char in [?\s, ?\t, ?\n, ?\r],
+       do: append_text(rest, text, whitespace_size + 1, ctx, html)
+
+  defp append_text(<<>>, _text, _whitespace_size, ctx, html)
+       when ctx.skip_whitespace_nodes,
+       do: html
+
+  defp append_text(<<_rest::binary>>, text, _whitespace_size, ctx, html)
+       when not ctx.escape,
+       do: <<html::binary, text::binary>>
+
+  defp append_text(<<rest::binary>>, text, whitespace_size, ctx, html)
+       when ctx.escape,
+       do: append_escaped(rest, text, 0, whitespace_size, html)
 
   # We scan the characters until we run into one that needs escaping.
   # Once we do, we take the whole text chunk up until that point and
   # we append it to the result. This is more efficient than appending
   # each untransformed character individually.
+  #
+  # Note that we apply the same escaping inside attribute values and
+  # tag contents. We could escape less by making it contextual, but
+  # we want to match the behaviour of Phoenix.HTML [1].
+  #
+  # [1]: https://github.com/phoenixframework/phoenix_html/blob/v4.2.1/lib/phoenix_html/engine.ex#L29-L35
 
-  defp append_escaped(text, mode, html) when mode in [:content, :attribute] do
-    append_escaped(text, text, 0, 0, mode, html)
+  defp append_escaped(text, html) do
+    append_escaped(text, text, 0, 0, html)
   end
 
-  defp append_escaped(<<>>, text, 0 = _offset, _size, _mode, html) do
+  defp append_escaped(<<>>, text, 0 = _offset, _size, html) do
     # We scanned the whole text and there were no characters to escape,
     # so we append the whole text.
     <<html::binary, text::binary>>
   end
 
-  defp append_escaped(<<>>, text, offset, size, _mode, html) do
+  defp append_escaped(<<>>, text, offset, size, html) do
     chunk = binary_part(text, offset, size)
     <<html::binary, chunk::binary>>
   end
 
-  defp append_escaped(<<?&, rest::binary>>, text, offset, size, mode, html) do
-    chunk = binary_part(text, offset, size)
-    html = <<html::binary, chunk::binary, "&amp;">>
-    append_escaped(rest, text, offset + size + 1, 0, mode, html)
-  end
+  escapes = [
+    {?&, "&amp;"},
+    {?<, "&lt;"},
+    {?>, "&gt;"},
+    {?", "&quot;"},
+    {?', "&#39;"}
+  ]
 
-  defp append_escaped(<<194, rest::binary>>, text, offset, size, mode, html) do
-    # We match the second byte separately, so that all main clauses
-    # match only a single byte, which is faster.
-    case rest do
-      <<160, rest::binary>> ->
-        chunk = binary_part(text, offset, size)
-        html = <<html::binary, chunk::binary, "&nbsp;">>
-        append_escaped(rest, text, offset + size + 2, 0, mode, html)
-
-      _other ->
-        append_escaped(rest, text, offset, size + 1, mode, html)
+  for {char, escaped} <- escapes do
+    defp append_escaped(<<unquote(char), rest::binary>>, text, offset, size, html) do
+      chunk = binary_part(text, offset, size)
+      html = <<html::binary, chunk::binary, unquote(escaped)>>
+      append_escaped(rest, text, offset + size + 1, 0, html)
     end
   end
 
-  defp append_escaped(<<?<, rest::binary>>, text, offset, size, :content, html) do
-    chunk = binary_part(text, offset, size)
-    html = <<html::binary, chunk::binary, "&lt;">>
-    append_escaped(rest, text, offset + size + 1, 0, :content, html)
-  end
-
-  defp append_escaped(<<?>, rest::binary>>, text, offset, size, :content, html) do
-    chunk = binary_part(text, offset, size)
-    html = <<html::binary, chunk::binary, "&gt;">>
-    append_escaped(rest, text, offset + size + 1, 0, :content, html)
-  end
-
-  defp append_escaped(<<?", rest::binary>>, text, offset, size, :attribute, html) do
-    chunk = binary_part(text, offset, size)
-    html = <<html::binary, chunk::binary, "&quot;">>
-    append_escaped(rest, text, offset + size + 1, 0, :attribute, html)
-  end
-
-  defp append_escaped(<<_char, rest::binary>>, text, offset, size, mode, html) do
-    append_escaped(rest, text, offset, size + 1, mode, html)
+  defp append_escaped(<<_char, rest::binary>>, text, offset, size, html) do
+    append_escaped(rest, text, offset, size + 1, html)
   end
 end
