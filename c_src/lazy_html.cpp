@@ -756,6 +756,28 @@ std::uint64_t num_nodes(ErlNifEnv *env, ExLazyHTML ex_lazy_html) {
 
 FINE_NIF(num_nodes, 0);
 
+std::vector<fine::Term> tag(ErlNifEnv *env, ExLazyHTML ex_lazy_html) {
+  auto values = std::vector<fine::Term>();
+
+  for (auto node : ex_lazy_html.resource->nodes) {
+    if (node->type == LXB_DOM_NODE_TYPE_ELEMENT) {
+      auto element = lxb_dom_interface_element(node);
+
+      size_t name_length;
+      auto name = lxb_dom_element_qualified_name(element, &name_length);
+      if (name == NULL) {
+        throw std::runtime_error("failed to read tag name");
+      }
+      auto name_term = make_new_binary(env, name_length, name);
+      values.push_back(name_term);
+    }
+  }
+
+  return values;
+}
+
+FINE_NIF(tag, 0);
+
 } // namespace lazy_html
 
 FINE_INIT("Elixir.LazyHTML.NIF");
