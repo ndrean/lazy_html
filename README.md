@@ -9,9 +9,9 @@ Efficient parsing and querying of HTML documents.
 
 LazyHTML is designed around lazy HTML documents. Documents are parsed
 and kept natively in memory for as long as possible. Query selectors
-are executed in native code for performance. Under the hood, LazyHTML
-uses [Lexbor](https://github.com/lexbor/lexbor), a fast, dependency-free
-and comprehensive HTML engine, written entirely in C.
+are executed in native code for performance and adheres to browser standards.
+Under the hood, LazyHTML uses [Lexbor](https://github.com/lexbor/lexbor),
+a fast, dependency-free and comprehensive HTML engine, written entirely in C.
 
 LazyHTML works with a flat list of nodes and all operations are batched
 by default, as shown below:
