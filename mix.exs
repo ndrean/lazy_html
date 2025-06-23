@@ -3,7 +3,7 @@ defmodule LazyHTML.MixProject do
 
   @lexbor_version "2.4.0"
 
-  @version "0.1.2"
+  @version "0.1.3-dev"
   @description "Efficient parsing and querying of HTML documents"
   @github_url "https://github.com/dashbitco/lazy_html"
 
