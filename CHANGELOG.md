@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [v0.1.3](https://github.com/dashbitco/lazy_html/tree/v0.1.3) (2025-06-26)
+
+### Added
+
+- Added `:skip_whitespace_nodes` option to `LazyHTML.to_tree/2` ([#10](https://github.com/dashbitco/lazy_html/pull/10))
+
 ## [v0.1.2](https://github.com/dashbitco/lazy_html/tree/v0.1.2) (2025-06-23)
 
 ### Fixed
