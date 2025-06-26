@@ -367,7 +367,7 @@ void node_to_tree(ErlNifEnv *env, fine::ResourcePtr<LazyHTML> &resource,
     for (auto child = template_aware_first_child(node); child != NULL;
          child = lxb_dom_node_next(child)) {
       node_to_tree(env, resource, child, children, sort_attributes,
-          skip_whitespace_nodes);
+                   skip_whitespace_nodes);
     }
 
     auto children_term = enif_make_list_from_array(
@@ -405,7 +405,7 @@ fine::Term to_tree(ErlNifEnv *env, ExLazyHTML ex_lazy_html,
 
   for (auto node : ex_lazy_html.resource->nodes) {
     node_to_tree(env, ex_lazy_html.resource, node, tree, sort_attributes,
-        skip_whitespace_nodes);
+                 skip_whitespace_nodes);
   }
 
   return enif_make_list_from_array(env, tree.data(),
