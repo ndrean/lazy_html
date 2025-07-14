@@ -1,12 +1,12 @@
 defmodule LazyHTML do
   @external_resource "README.md"
 
-  [_, readme_docs, _] =
-    "README.md"
-    |> File.read!()
-    |> String.split("<!-- Docs -->")
+  # [_, readme_docs, _] =
+  #   "README.md"
+  #   |> File.read!()
+  #   |> String.split("<!-- Docs -->")
 
-  @moduledoc readme_docs
+  # @moduledoc readme_docs
 
   defstruct [:resource]
 

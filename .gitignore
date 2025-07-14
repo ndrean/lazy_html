@@ -24,3 +24,7 @@ lazy_html-*.tar
 
 # Checksums for precompile binaries.
 /checksum.exs
+
+/priv/
+/.elixir_ls/
+/.vscode/

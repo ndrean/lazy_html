@@ -1,0 +1,43 @@
+# Configuration example for enabling Zigler backend
+
+# Option 1: Development mode with Zigler framework (requires Zigler dependency)
+# In your config/dev.exs or config/config.exs, add:
+config :lazy_html, use_zigler_backend: true
+
+# Option 2: Precompiled Zig NIF (requires Zig compiler during build, but not for users)
+# This creates a traditional NIF shared library that can be distributed
+config :lazy_html, use_precompiled_zig: true
+
+# Option 3: Production/distribution mode (default)
+# Uses the stable C++ NIF with proper precompilation
+# config :lazy_html  # No additional config needed
+
+# Performance Testing Configuration:
+# To test the ReleaseFast optimized Zig implementation:
+config :lazy_html, use_precompiled_zig: true
+
+# Then run benchmarks:
+# mix run -e "LazyHTML.ZiglerParser.from_document(File.read!(\"large_file.html\"))"
+
+# Distribution Recommendations:
+#
+# For Library Authors:
+# - Use option 1 for development and testing Zig implementation
+# - Use option 2 to create precompiled Zig artifacts for distribution  
+# - Use option 3 (default) for stable production releases
+#
+# For Library Users:
+# - Option 3 is recommended - no additional setup required
+# - Option 2 works if the precompiled Zig NIF is available in the package
+# - Option 1 requires zigler dependency and development setup
+#
+# Build Process:
+# - make all: Builds C++ NIF, lexbor wrapper, AND Zig NIF (if Zig available)
+# - The Zig NIF will be built automatically with ReleaseFast optimizations
+# - Precompiled artifacts can be bundled in the hex package
+#
+# Performance Benefits with ReleaseFast:
+# - 2-3x faster HTML parsing compared to debug builds
+# - Optimized memory allocations and reduced overhead
+# - Smaller binary size due to -fstrip (removes debug symbols)
+# - Production-ready performance for distribution

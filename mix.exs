@@ -21,7 +21,7 @@ defmodule LazyHTML.MixProject do
       make_env: fn ->
         %{
           "FINE_INCLUDE_DIR" => Fine.include_dir(),
-          "LEXBOR_VERSION" => @lexbor_version
+          "LEXBOR_VERSION" => @lexbor_version || "2.4.0"
         }
       end,
       # Precompilation
@@ -43,7 +43,8 @@ defmodule LazyHTML.MixProject do
       {:fine, "~> 0.1.0"},
       {:elixir_make, "~> 0.9.0"},
       {:cc_precompiler, "~> 0.1", runtime: false},
-      {:ex_doc, "~> 0.36", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.36", only: :dev, runtime: false},
+      {:zigler, "~> 0.14.1", runtime: false}
     ]
   end
 

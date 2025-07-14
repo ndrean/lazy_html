@@ -30,13 +30,46 @@ endif
 
 SOURCES := $(wildcard $(C_SRC)/*.cpp)
 
-# Simple build - just the C++ NIF
-all: $(NIF_PATH)
+# Lexbor wrapper for Zigler
+WRAPPER_OBJ := $(shell pwd)/_build/lexbor_wrapper.o
+WRAPPER_SRC := $(C_SRC)/lexbor_wrapper_standalone.c
+
+# Zig NIF compilation
+ZIG_SRC := $(shell pwd)/zig_src
+ZIG_NIF_PATH := $(PRIV_DIR)/liblazy_html_zig.so
+ZIG_MAIN := $(ZIG_SRC)/lazy_html_nif.zig
+
+all: $(NIF_PATH) $(WRAPPER_OBJ)
 	@ echo > /dev/null # Dummy command to avoid the default output "Nothing to be done".
 
 $(NIF_PATH): $(SOURCES) $(LEXBOR_LIB)
 	@ mkdir -p $(PRIV_DIR)
 	$(CXX) $(CPPFLAGS) $(SOURCES) $(LEXBOR_LIB) -o $(NIF_PATH)
+
+$(WRAPPER_OBJ): $(WRAPPER_SRC) $(LEXBOR_LIB)
+	@ mkdir -p $(shell dirname $(WRAPPER_OBJ))
+	$(CC) -c -fPIC -I$(LEXBOR_DIR)/source $(WRAPPER_SRC) -o $(WRAPPER_OBJ)
+
+# Zig NIF compilation
+$(ZIG_NIF_PATH): $(ZIG_MAIN) $(LEXBOR_LIB) $(WRAPPER_OBJ)
+	@ mkdir -p $(PRIV_DIR)
+	@ # Check if zig is available
+	@ which zig > /dev/null 2>&1 || (echo "Warning: Zig not found, skipping Zig NIF compilation" && exit 0)
+	@ echo "Building Zig NIF with ReleaseFast optimization..."
+	@ # First compile to object file
+	zig build-obj $(ZIG_MAIN) \
+		-fPIC \
+		-I$(ERTS_INCLUDE_DIR) \
+		-I$(LEXBOR_DIR)/source \
+		-I$(shell pwd)/c_headers \
+		-O ReleaseFast \
+		-femit-bin=$(ZIG_NIF_PATH).o
+	@ # Then link with system linker allowing undefined symbols
+	$(CC) -shared -undefined dynamic_lookup -o $(ZIG_NIF_PATH) \
+		$(ZIG_NIF_PATH).o \
+		$(LEXBOR_LIB) \
+		$(WRAPPER_OBJ) \
+		-lc
 
 $(LEXBOR_LIB): $(LEXBOR_DIR)
 	@ mkdir -p $(LEXBOR_BUILD_DIR)
@@ -51,7 +84,7 @@ $(LEXBOR_DIR):
 	@ git clone --depth 1 --branch v$(LEXBOR_VERSION) https://github.com/lexbor/lexbor.git $(LEXBOR_DIR)
 
 clean:
-	rm -f $(NIF_PATH)
+	rm -f $(NIF_PATH) $(WRAPPER_OBJ) $(ZIG_NIF_PATH)
 	rm -rf $(LEXBOR_BUILD_DIR)
 
 .PHONY: all clean
