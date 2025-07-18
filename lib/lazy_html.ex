@@ -476,7 +476,6 @@ defmodule LazyHTML do
       ["span", "span"]
 
   """
-  @spec tag(t()) :: list(String.t())
   def tag(%LazyHTML{} = lazy_html) do
     LazyHTML.NIF.tag(lazy_html)
   end
